@@ -6,7 +6,7 @@
     ```
     > warnx('program [%s] warns', 'spam')
     lua53: program [spam] warns:
-    > warn(13, 'Permission denied', 'program [%s] warns', 'spam')
+    > warn('Permission denied', 13, 'program [%s] warns', 'spam')
     lua53: program [spam] warns: Permission denied: 13
     > errx(22, 'program [%s] cannot run', 'spam')
     lua53: program [spam] cannot run:
@@ -39,7 +39,7 @@ local function warnx(fmt, ...)
 end
 
 -- @export
-local function warn(errcode, errmsg, fmt, ...)
+local function warn(errmsg, errcode, fmt, ...)
     _warnx_partial(fmt, ...)
     fprintf(io.stderr, '%s: %d\n', errmsg, errcode)
 end
@@ -51,8 +51,8 @@ local function errx(eval, fmt, ...)
 end
 
 -- @export
-local function err(eval, errcode, errmsg, fmt, ...)
-    warn(errcode, errmsg, fmt, ...)
+local function err(eval, errmsg, errcode, fmt, ...)
+    warn(errmsg, errcode, fmt, ...)
     os.exit(eval)
 end
 
