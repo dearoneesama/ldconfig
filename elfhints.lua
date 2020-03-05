@@ -8,8 +8,6 @@ local Util = require('util')
 
 local S_IWOTH = 2            -- 0002
 local S_IWGRP = 16           -- 0020
-local MAXDIRS = 1024         -- Maximum directories in path
-local MAXFILESIZE = 16*1024  -- Maximum hints file size
 
 -- @export @class
 local function Elfhints(hintsfile, insecure)
@@ -42,9 +40,6 @@ local function Elfhints(hintsfile, insecure)
 		for i = 1, #dirs do
 			if dirs[i] == name then return end
 		end
-		if #dirs >= MAXDIRS then
-			Util.errx(1, '"%s": Too many directories in path', hintsfile);
-		end
 		dirs[#dirs + 1] = name
 	end
 
@@ -55,6 +50,20 @@ local function Elfhints(hintsfile, insecure)
 			Util.err(1, errmsg, errcode, '%s', listfile)
 		end
 		local linenum = 0
+		for line in fp:lines() do
+			linenum = linenum + 1
+			-- skip comments starting with #
+			if string.match(line, '^%s*#') then goto continue end
+			local name, trailing = string.match(line, '^%s*(%S+)%s*(%S*)')
+			-- matched dir name
+			if name ~= nil then add_dir(name, false) end
+			-- has trailing characters after dir name 
+			if trailing ~= nil and trailing ~= '' then
+				Util.warnx('%s:%d: trailing characters ignored', listfile, linenum)
+			end
+			-- it is sure that lines with only whitespaces won't trigger any of the above
+			::continue::
+		end
 		fp:close()
 	end
 
