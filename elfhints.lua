@@ -6,8 +6,30 @@
 local lfs = require('lfs')
 local Util = require('util')
 
+-- not relevant but necessary
 local S_IWOTH = 2            -- 0002
 local S_IWGRP = 16           -- 0020
+local ENOENT = 2
+
+-- @export
+local ELFHINTS_MAGIC = 0x746e6845
+-- @export
+local _PATH_ELF_HINTS = '/var/run/ld-elf.so.hints'
+-- @export
+local _PATH_LD32_HINTS = '/var/run/ld32.so.hints'
+-- @export
+local _PATH_ELF32_HINTS = '/var/run/ld-elf32.so.hints'
+-- @export
+local _PATH_ELFSOFT_HINTS = '/var/run/ld-elf-soft.so.hints'
+
+-- @export @class
+local function ElfhintsHdr()
+	return {
+		magic = 0,        -- magic number
+		version = 0,      -- file version
+		-- refer to elf-hints.h for unnecessary fields
+	}
+end
 
 -- @export @class
 local function Elfhints(hintsfile, insecure)
@@ -67,7 +89,38 @@ local function Elfhints(hintsfile, insecure)
 		fp:close()
 	end
 
+	-- @private @method @unimpl
+	local function read_hints(must_exist)
+		local fp, errmsg, errcode = io.open(hintsfile, 'r')
+		if fp == nil then
+			-- no such file
+			if errcode == ENOENT and not must_exist then return end
+		Util.err(1, errmsg, errcode, 'Cannot open "%s"', hintsfile)
+		end
+
+		local fstat, errmsg, errcode = lfs.attributes(hintsfile)
+		if fstat == nil then
+			Util.err(1, errmsg, errcode, 'Cannot stat "%s"', hintsfile)
+		end
+
+	end
+
+	-- @private @method @unimpl
+	local function write_hints()
+		-- get a temp file with random name
+	end
+
 end -- function Elfhints
 Elfhints()
+
+return {
+	ELFHINTS_MAGIC = ELFHINTS_MAGIC,
+	_PATH_ELF_HINTS = _PATH_ELF_HINTS,
+	_PATH_LD32_HINTS = _PATH_LD32_HINTS,
+	_PATH_ELF32_HINTS = _PATH_ELF32_HINTS,
+	_PATH_ELFSOFT_HINTS = _PATH_ELFSOFT_HINTS,
+	ElfhintsHdr = ElfhintsHdr,
+	Elfhints = Elfhints
+}
 
 --[[ end elfhints.lua ]]
