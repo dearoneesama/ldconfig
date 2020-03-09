@@ -11,8 +11,12 @@ local S_IWOTH = 2            -- 0002
 local S_IWGRP = 16           -- 0020
 local ENOENT = 2
 
+-- [[ realm of elf-hints header ]]
+
 -- @export
 local ELFHINTS_MAGIC = 0x746e6845
+-- @export
+local _PATH_LD_HINTS = '/var/run/ld.so.hints'  -- comes from sys/sys/link_aout.h
 -- @export
 local _PATH_ELF_HINTS = '/var/run/ld-elf.so.hints'
 -- @export
@@ -24,12 +28,53 @@ local _PATH_ELFSOFT_HINTS = '/var/run/ld-elf-soft.so.hints'
 
 -- @export @class
 local function ElfhintsHdr()
+	-- the real data
+	-- @public
+	local body = {
+	--[[C u_int32_t]] magic = 0,        -- magic number
+	--[[C u_int32_t]] version = 0,      -- file version (1)
+	--[[C u_int32_t]] strtab = 0,       -- offset of string table in file
+	--[[C u_int32_t]] strsize = 0,      -- size of string table
+	--[[C u_int32_t]] dirlist = 0,      -- off set of directory in string table
+	--[[C u_int32_t]] dirlistlen = 0,   -- strlen(dirlist)
+	--[[C u_int32_t[26] ]] spare = 0    -- room for expansion
+
+	-- that's all. see elf-hints.h for details
+	-- total size: 128
+
+	-- followed by strings
+	}
+	local sizeof = 128
+
+	-- @public @method
+	local function to_binary()
+		return ('I4I4I4I4I4I4'):pack(
+			body.magic, body.version, body.strtab,
+			body.strsize, body.dirlist, body.dirlistlen
+		)..('\0'):rep(4 * 26)
+	end
+
+	-- @public @method
+	local function from_binary(bytes)
+		if #bytes ~= 128 then error() end
+		body.magic = ('I4'):unpack(bytes:sub(1, 4))
+		body.version = ('I4'):unpack(bytes:sub(5, 8))
+		body.strtab = ('I4'):unpack(bytes:sub(9, 12))
+		body.strsize = ('I4'):unpack(bytes:sub(13, 16))
+		body.dirlist = ('I4'):unpack(bytes:sub(17, 20))
+		body.dirlistlen = ('I4'):unpack(bytes:sub(21, 24))
+		body.spare = 0
+	end
+
 	return {
-		magic = 0,        -- magic number
-		version = 0,      -- file version
-		-- refer to elf-hints.h for unnecessary fields
+		body = body,
+		sizeof = sizeof,
+		to_binary = to_binary,
+		from_binary = from_binary
 	}
 end
+
+-- [[ end realm of elf-hints header ]]
 
 -- @export @class
 local function Elfhints(hintsfile, insecure)
@@ -115,6 +160,7 @@ Elfhints()
 
 return {
 	ELFHINTS_MAGIC = ELFHINTS_MAGIC,
+	_PATH_LD_HINTS = _PATH_LD_HINTS,
 	_PATH_ELF_HINTS = _PATH_ELF_HINTS,
 	_PATH_LD32_HINTS = _PATH_LD32_HINTS,
 	_PATH_ELF32_HINTS = _PATH_ELF32_HINTS,
