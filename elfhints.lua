@@ -44,6 +44,7 @@ local function ElfhintsHdr()
 
 	-- followed by strings
 	}
+	-- @public
 	local sizeof = 128
 
 	-- @public @method
@@ -56,7 +57,7 @@ local function ElfhintsHdr()
 
 	-- @public @method
 	local function from_binary(bytes)
-		if #bytes ~= 128 then error() end
+		if #bytes < 128 then error() end
 		body.magic = ('I4'):unpack(bytes:sub(1, 4))
 		body.version = ('I4'):unpack(bytes:sub(5, 8))
 		body.strtab = ('I4'):unpack(bytes:sub(9, 12))
@@ -134,13 +135,13 @@ local function Elfhints(hintsfile, insecure)
 		fp:close()
 	end
 
-	-- @private @method @unimpl
+	-- @private @method
 	local function read_hints(must_exist)
-		local fp, errmsg, errcode = io.open(hintsfile, 'r')
+		local fp, errmsg, errcode = io.open(hintsfile, 'rb')
 		if fp == nil then
 			-- no such file
 			if errcode == ENOENT and not must_exist then return end
-		Util.err(1, errmsg, errcode, 'Cannot open "%s"', hintsfile)
+			Util.err(1, errmsg, errcode, 'Cannot open "%s"', hintsfile)
 		end
 
 		local fstat, errmsg, errcode = lfs.attributes(hintsfile)
@@ -148,11 +149,31 @@ local function Elfhints(hintsfile, insecure)
 			Util.err(1, errmsg, errcode, 'Cannot stat "%s"', hintsfile)
 		end
 
+		local bytes = fp:read('a')
+		local hdr = ElfhintsHdr()
+		hdr.from_binary(bytes)
+		if hdr.body.magic ~= ELFHINTS_MAGIC then
+			Util.errx(1, '"%s": invalid file format', hintsfile)
+		end
+		if hdr.body.version ~= 1 then
+			Util.errx(1, '"%s": unrecognized file version (%d)', hintsfile,
+			    hdr.body.version)
+		end
+
+		local strtab = hdr.body.strtab + 1
+		local dirlist = strtab + hdr.body.dirlist
+		-- get substring from position dirlist to the end
+		local dirsubstring = bytes:sub(dirlist)
+		-- split string by : . this loop is skipped if it is empty
+		for name in dirsubstring:gmatch('[^:]+') do
+			add_dir(name, true)
+		end
 	end
 
 	-- @private @method @unimpl
 	local function write_hints()
 		-- get a temp file with random name
+		-- wait for lposix implementation...
 	end
 
 end -- function Elfhints
