@@ -56,13 +56,30 @@ local function err(eval, errmsg, errcode, fmt, ...)
 	os.exit(eval)
 end
 
+-- @export
+local function callerr(func, fmt, ...)
+	local ret, errmsg, errcode = func()
+	if ret == nil then
+		err(1, errmsg, errcode, fmt, ...)
+	end
+	return ret
+end
+
+-- @export
+local function bind(func, ...)
+	local args = {...}
+	return function() return func(table.unpack(args)) end
+end
+
 return {
 	fprintf = fprintf,
 	printf = printf,
 	warnx = warnx,
 	warn = warn,
 	errx = errx,
-	err = err
+	err = err,
+	callerr = callerr,
+	bind = bind
 }
 
 -- [[ end util.lua ]]

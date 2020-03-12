@@ -4,48 +4,39 @@
 --]]
 
 local lfs = require('lfs')
+local sysstat = require('posix.sys.stat')
 local Util = require('util')
 
 -- not relevant but necessary
-local S_IWOTH = 2            -- 0002
-local S_IWGRP = 16           -- 0020
+local S_IWOTH = 2			-- 0002
+local S_IWGRP = 16			-- 0020
 local ENOENT = 2
 
 -- [[ realm of elf-hints header ]]
 
--- @export
 local ELFHINTS_MAGIC = 0x746e6845
--- @export
-local _PATH_LD_HINTS = '/var/run/ld.so.hints'  -- comes from sys/sys/link_aout.h
--- @export
-local _PATH_ELF_HINTS = '/var/run/ld-elf.so.hints'
--- @export
-local _PATH_LD32_HINTS = '/var/run/ld32.so.hints'
--- @export
-local _PATH_ELF32_HINTS = '/var/run/ld-elf32.so.hints'
--- @export
-local _PATH_ELFSOFT_HINTS = '/var/run/ld-elf-soft.so.hints'
 
--- @export @class
+-- @class
 local function ElfhintsHdr()
+	-- @public
+	local sizeof = 128
+
 	-- the real data
 	-- @public
 	local body = {
-	--[[C u_int32_t]] magic = 0,        -- magic number
-	--[[C u_int32_t]] version = 0,      -- file version (1)
-	--[[C u_int32_t]] strtab = 0,       -- offset of string table in file
-	--[[C u_int32_t]] strsize = 0,      -- size of string table
-	--[[C u_int32_t]] dirlist = 0,      -- off set of directory in string table
-	--[[C u_int32_t]] dirlistlen = 0,   -- strlen(dirlist)
-	--[[C u_int32_t[26] ]] spare = 0    -- room for expansion
+	--[[u_int32_t]] magic = ELFHINTS_MAGIC,			-- magic number
+	--[[u_int32_t]] version = 1,			-- file version (1)
+	--[[u_int32_t]] strtab = sizeof,			-- offset of string table in file
+	--[[u_int32_t]] strsize = 0,			-- size of string table
+	--[[u_int32_t]] dirlist = 0,			-- off set of directory in string table
+	--[[u_int32_t]] dirlistlen = 0,			-- strlen(dirlist)
+	--[[u_int32_t[26] ]] spare = 0			-- room for expansion
 
 	-- that's all. see elf-hints.h for details
 	-- total size: 128
 
 	-- followed by strings
 	}
-	-- @public
-	local sizeof = 128
 
 	-- @public @method
 	local function to_binary()
@@ -113,10 +104,8 @@ local function Elfhints(hintsfile, insecure)
 
 	-- @private @method
 	local function read_dirs_from_file(listfile)
-		local fp, errmsg, errcode = io.open(listfile, 'r')
-		if fp == nil then
-			Util.err(1, errmsg, errcode, '%s', listfile)
-		end
+		local fp = Util.callerr(Util.bind(io.open, listfile, 'r'),
+		    '%s', listfile)
 		local linenum = 0
 		for line in fp:lines() do
 			linenum = linenum + 1
@@ -143,13 +132,12 @@ local function Elfhints(hintsfile, insecure)
 			if errcode == ENOENT and not must_exist then return end
 			Util.err(1, errmsg, errcode, 'Cannot open "%s"', hintsfile)
 		end
-
-		local fstat, errmsg, errcode = lfs.attributes(hintsfile)
-		if fstat == nil then
-			Util.err(1, errmsg, errcode, 'Cannot stat "%s"', hintsfile)
-		end
+		-- why stat?
+		local fstat = Util.callerr(Util.bind(lfs.attributes, hintsfile),
+		    'Cannot stat "%s"', hintsfile)
 
 		local bytes = fp:read('a')
+		fp:close()
 		local hdr = ElfhintsHdr()
 		hdr.from_binary(bytes)
 		if hdr.body.magic ~= ELFHINTS_MAGIC then
@@ -170,23 +158,48 @@ local function Elfhints(hintsfile, insecure)
 		end
 	end
 
-	-- @private @method @unimpl
+	-- @private @method
 	local function write_hints()
-		-- get a temp file with random name
-		-- wait for lposix implementation...
+		local stringbuilder = {}
+		local hdr = ElfhintsHdr()
+
+		-- count up the size of the string table
+		if #dirs > 0 then
+			hdr.body.strsize = hdr.body.strsize + #dirs[1]
+			for i = 2, #dirs do
+				hdr.body.strsize = hdr.body.strsize + 1 + #dirs[i]
+			end
+		end
+		hdr.body.dirlistlen = hdr.body.strsize
+		hdr.body.strsize = hdr.body.strsize + 1 -- null terminator
+
+		-- write header
+		table.insert(stringbuilder, hdr.to_binary())
+		-- write strings
+		table.insert(stringbuilder, table.concat(dirs, ':'))
+		table.insert(stringbuilder, '\0')
+
+		local fp = Util.callerr(Util.bind(io.open, hintsfile, 'w+b'),
+		    'Cannot open %s', hintsfile)
+		Util.callerr(
+			function() return fp:write(table.concat(stringbuilder, '')) end,
+		    '%s: write error', hintsfile)
+		fp:close()
+
+		Util.callerr(Util.bind(sysstat.chmod, hintsfile, 292), -- 0444
+		    'chmod(%s)', hintsfile)
+	end
+
+	-- acts like a main function where arglist is _G.arg
+	-- @public @method
+	local function update_hints(arglist, merge)
+
 	end
 
 end -- function Elfhints
-Elfhints()
+Elfhints('ldconfig/ld-elf.so.hintshaha')
 
 return {
-	ELFHINTS_MAGIC = ELFHINTS_MAGIC,
-	_PATH_LD_HINTS = _PATH_LD_HINTS,
-	_PATH_ELF_HINTS = _PATH_ELF_HINTS,
-	_PATH_LD32_HINTS = _PATH_LD32_HINTS,
-	_PATH_ELF32_HINTS = _PATH_ELF32_HINTS,
-	_PATH_ELFSOFT_HINTS = _PATH_ELFSOFT_HINTS,
-	ElfhintsHdr = ElfhintsHdr,
 	Elfhints = Elfhints
 }
 
