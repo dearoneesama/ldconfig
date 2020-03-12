@@ -110,8 +110,8 @@ local function Elfhints(hintsfile, insecure)
 		for line in fp:lines() do
 			linenum = linenum + 1
 			-- skip comments starting with #
-			if string.match(line, '^%s*#') then goto continue end
-			local name, trailing = string.match(line, '^%s*(%S+)%s*(%S*)')
+			if line:match('^%s*#') then goto continue end
+			local name, trailing = line:match('^%s*(%S+)%s*(%S*)')
 			-- matched dir name
 			if name ~= nil then add_dir(name, false) end
 			-- has trailing characters after dir name 
@@ -209,8 +209,25 @@ local function Elfhints(hintsfile, insecure)
 		write_hints()
 	end
 
-	-- @public @method @unimpl
+	-- @public @method
 	local function list_hints()
+		read_hints(true)
+		Util.printf('%s:\n', hintsfile)
+		Util.printf('\tsearch directories: %s\n', table.concat(dirs, ':'))
+
+		local nlibs = 0
+		for _, dir in ipairs(dirs) do
+			-- unopenable folders skipped here
+			for file in lfs.dir(dir) do
+				-- name can't be shorter than "libx.so.0" and has .so.x
+				local name, vers = file:match('^lib(.*)%.so%.([0-9]*)$')
+				if name == nil or vers == nil then goto continue end
+				Util.printf('\t%d:-l%s.%s => %s/%s\n', nlibs,
+				    name, vers, dir, file)
+				nlibs = nlibs + 1
+				::continue::
+			end
+		end
 	end
 
 	return {
@@ -218,7 +235,6 @@ local function Elfhints(hintsfile, insecure)
 		list_hints = list_hints
 	}
 end -- function Elfhints
-Elfhints('ldconfig/ld-elf.so.hintshahaa')
 
 return {
 	Elfhints = Elfhints
