@@ -96,8 +96,8 @@ local function Elfhints(hintsfile, insecure)
 			end
 		end
 
-		for i = 1, #dirs do
-			if dirs[i] == name then return end
+		for _, dir in ipairs(dirs) do
+			if dir == name then return end
 		end
 		dirs[#dirs + 1] = name
 	end
@@ -153,7 +153,8 @@ local function Elfhints(hintsfile, insecure)
 		-- get substring from position dirlist to the end
 		local dirsubstring = bytes:sub(dirlist)
 		-- split string by : . this loop is skipped if it is empty
-		for name in dirsubstring:gmatch('[^:]+') do
+		-- avoiding the \0 at the end of the file is neccessary
+		for name in dirsubstring:gmatch('[^:\0]+') do
 			add_dir(name, true)
 		end
 	end
@@ -190,14 +191,34 @@ local function Elfhints(hintsfile, insecure)
 		    'chmod(%s)', hintsfile)
 	end
 
-	-- acts like a main function where arglist is _G.arg
 	-- @public @method
-	local function update_hints(arglist, merge)
-
+	local function update_hints(flist, ismerge)
+		if ismerge == true then
+			read_hints(false)
+		end
+		for _, f in ipairs(flist) do
+			local st, errmsg, errcode = lfs.attributes(f)
+			if st == nil then
+				Util.warn(errmsg, errcode, 'warning: %s', f)
+			elseif st.mode == 'file' then
+				read_dirs_from_file(f)
+			else
+				add_dir(f, false)
+			end
+		end
+		write_hints()
 	end
 
+	-- @public @method @unimpl
+	local function list_hints()
+	end
+
+	return {
+		update_hints = update_hints,
+		list_hints = list_hints
+	}
 end -- function Elfhints
-Elfhints('ldconfig/ld-elf.so.hintshaha')
+Elfhints('ldconfig/ld-elf.so.hintshahaa')
 
 return {
 	Elfhints = Elfhints
