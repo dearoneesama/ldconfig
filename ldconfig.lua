@@ -81,7 +81,16 @@ function main(args)
 		session.update_hints({}, merge or rescan)
 	end
 
-local function main(args)
+	print(hintsfile)
+	print('aout: ', is_aout,
+		'\n32: ', is_32,
+		'\nsoft: ', is_soft,
+		'\nverbose: ', verbose,
+		'\nnostd', nostd,
+		'\njustread', justread,
+		'\nmerge', merge,
+		'\nrescan', rescan,
+		'\ninsecure', insecure)
 end
 
 function usage()
