@@ -163,21 +163,16 @@ local function Elfhints(hintsfile, insecure)
 	local function write_hints()
 		local stringbuilder = {}
 		local hdr = ElfhintsHdr()
+		local dircontent = table.concat(dirs, ':')
 
-		-- count up the size of the string table
-		if #dirs > 0 then
-			hdr.body.strsize = hdr.body.strsize + #dirs[1]
-			for i = 2, #dirs do
-				hdr.body.strsize = hdr.body.strsize + 1 + #dirs[i]
-			end
-		end
+		hdr.body.strsize = #dircontent
 		hdr.body.dirlistlen = hdr.body.strsize
 		hdr.body.strsize = hdr.body.strsize + 1 -- null terminator
 
 		-- write header
 		table.insert(stringbuilder, hdr.to_binary())
 		-- write strings
-		table.insert(stringbuilder, table.concat(dirs, ':'))
+		table.insert(stringbuilder, dircontent)
 		table.insert(stringbuilder, '\0')
 
 		local fp = Util.callerr(Util.bind(io.open, hintsfile, 'w+b'),
