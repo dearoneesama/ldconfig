@@ -52,7 +52,7 @@ function main(args)
 		hintsfile = Paths._PATH_ELF_HINTS
 	end
 
-	local rest
+	local rest = {}
 	if #arg == 0 then
 		rescan = true
 	else
@@ -60,42 +60,38 @@ function main(args)
 		local i = 1
 		while i <= #rest do
 			local v = rest[i]
-			if v == '-R' then rescan = true
-			elseif v == '-i' then insecure = true
-			elseif v == '-m' then merge = true
-			elseif v == '-r' then justread = true
-			elseif v == '-s' then nostd = true
-			elseif v == '-v' then verbose = true
-			elseif v == '-f' then
-				hintsfile = checkarg(rest[i+1])
-				i = i + 1
-			else usage() end
-			i = i + 1
+			if v:match('^%-%a$') then -- one hyphen and one char
+				if v == '-R' then rescan = true
+				elseif v == '-i' then insecure = true
+				elseif v == '-m' then merge = true
+				elseif v == '-r' then justread = true
+				elseif v == '-s' then nostd = true
+				elseif v == '-v' then verbose = true
+				elseif v == '-f' then
+					hintsfile = checkarg(rest[i+1])
+					i = i+1
+				else usage() end
+				i = i+1
+				curridx = i
+			else
+				curridx = i -- args left are assumed to be file names
+				break
+			end
 		end
 	end
 
+	local files = {table.unpack(rest, curridx)}
 	local session = Elfhints.Elfhints(hintsfile, insecure)
 	if justread then
 		session.list_hints()
-	else -- TODO insert appropriate list here
-		session.update_hints({}, merge or rescan)
+	else
+		session.update_hints(files, merge or rescan)
 	end
-
-	print(hintsfile)
-	print('aout: ', is_aout,
-		'\n32: ', is_32,
-		'\nsoft: ', is_soft,
-		'\nverbose: ', verbose,
-		'\nnostd', nostd,
-		'\njustread', justread,
-		'\nmerge', merge,
-		'\nrescan', rescan,
-		'\ninsecure', insecure)
 end
 
 function usage()
 	Util.fprintf(io.stderr, 
-	'usage: ldconfig [-32] [-aout | -elf] [-Rimrsv] [-f hints_file] [directory | file ...]\n')
+	'usage: ldconfig [-32 | -soft] [-aout | -elf] [-Rimrsv] [-f hints_file] [directory | file ...]\n')
 	os.exit(1)
 end
 

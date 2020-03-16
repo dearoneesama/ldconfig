@@ -212,15 +212,25 @@ local function Elfhints(hintsfile, insecure)
 
 		local nlibs = 0
 		for _, dir in ipairs(dirs) do
-			-- unopenable folders skipped here
-			for file in lfs.dir(dir) do
-				-- name can't be shorter than "libx.so.0" and has .so.x
-				local name, vers = file:match('^lib(.*)%.so%.([0-9]*)$')
-				if name == nil or vers == nil then goto continue end
-				Util.printf('\t%d:-l%s.%s => %s/%s\n', nlibs,
-				    name, vers, dir, file)
-				nlibs = nlibs + 1
-				::continue::
+			local ok, msg = pcall(function()
+				for file in lfs.dir(dir) do
+					-- name can't be shorter than "libx.so.0" and has .so.x
+					local name, vers = file:match('^lib(.*)%.so%.([0-9]*)$')
+					if name == nil or vers == nil then goto continue end
+					Util.printf('\t%d:-l%s.%s => %s/%s\n', nlibs,
+						name, vers, dir, file)
+					nlibs = nlibs + 1
+					::continue::
+				end
+			end)
+			-- if lfs.dir fails, check whether the directory exists by stating
+			if not ok then
+				if msg:match('nil') then
+					Util.callerr(Util.bind(lfs.attributes, dir),
+					    'Cannot open "%s"', dir)
+				else
+					error(msg)
+				end
 			end
 		end
 	end
