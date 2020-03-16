@@ -132,7 +132,7 @@ local function Elfhints(hintsfile, insecure)
 			if errcode == ENOENT and not must_exist then return end
 			Util.err(1, errmsg, errcode, 'Cannot open "%s"', hintsfile)
 		end
-		-- why stat?
+
 		local fstat = Util.callerr(Util.bind(lfs.attributes, hintsfile),
 		    'Cannot stat "%s"', hintsfile)
 
@@ -218,7 +218,7 @@ local function Elfhints(hintsfile, insecure)
 					local name, vers = file:match('^lib(.*)%.so%.([0-9]*)$')
 					if name == nil or vers == nil then goto continue end
 					Util.printf('\t%d:-l%s.%s => %s/%s\n', nlibs,
-						name, vers, dir, file)
+					    name, vers, dir, file)
 					nlibs = nlibs + 1
 					::continue::
 				end

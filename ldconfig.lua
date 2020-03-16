@@ -90,8 +90,8 @@ function main(args)
 end
 
 function usage()
-	Util.fprintf(io.stderr, 
-	'usage: ldconfig [-32 | -soft] [-aout | -elf] [-Rimrsv] [-f hints_file] [directory | file ...]\n')
+	Util.fprintf(io.stderr,
+	    'usage: ldconfig [-32 | -soft] [-aout | -elf] [-Rimrsv] [-f hints_file] [directory | file ...]\n')
 	os.exit(1)
 end
 
